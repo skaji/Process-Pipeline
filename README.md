@@ -26,6 +26,16 @@ In perl5:
        say <$fh>;
     }
 
+In perl5 with DSL:
+
+    use Process::Pipeline::DSL;
+
+    my $pipeline = proc { "zcat", "access.log.gz" }
+                   proc { "grep", "198.168.10.1"  }
+                   proc { "wc", "-l"              };
+
+    my $r = $pipeline->start;
+
 # DESCRIPTION
 
 Process::Pipeline helps you write a pipeline of processes.

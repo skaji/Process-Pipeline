@@ -78,6 +78,11 @@ sub push ($self, $callback) :method {
     $self;
 }
 
+sub _push ($self, $p) {
+    push $self->{process}->@*, $p;
+    $self;
+}
+
 sub start ($self, %option) {
     my $n = $self->{process}->$#*;
     my @pipe = map { pipe my $read, my $write; [$read, $write] } 0..($n - 1);
@@ -189,6 +194,16 @@ In perl5:
      my $fh = $result->fh; # output filehandle of $pipeline
      say <$fh>;
   }
+
+In perl5 with DSL:
+
+  use Process::Pipeline::DSL;
+
+  my $pipeline = proc { "zcat", "access.log.gz" }
+                 proc { "grep", "198.168.10.1"  }
+                 proc { "wc", "-l"              };
+
+  my $r = $pipeline->start;
 
 =head1 DESCRIPTION
 
