@@ -11,7 +11,7 @@ our $PROCESS;
 
 sub set ($key, $value = undef) {
     die "Cannot call outside proc()\n" unless $PROCESS;
-    $PROCESS->{set}{$key} = $value;
+    $PROCESS->set($key, $value);
 }
 
 sub proc ($code, @process) :prototype(&;@) {
