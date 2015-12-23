@@ -4,22 +4,28 @@ use experimental qw/ postderef signatures /;
 use Process::Pipeline;
 
 use Exporter qw/ import /;
-our @EXPORT = qw/ proc /;
+our @EXPORT = qw/ proc set /;
 
-our $TOP;
+our $PIPELINE;
+our $PROCESS;
 
-sub proc ($code, @proc) :prototype(&;@) {
-    if (!$TOP) {
-        local $TOP = Process::Pipeline->new;
-        my $p = Process::Pipeline::Process->new;
-        $p->cmd($code->());
-        $TOP->_push($p);
-        $TOP->_push($_) for map { $_->{process}->@* } @proc;
-        return $TOP;
+sub set ($key, $value = undef) {
+    die "Cannot call outside proc()\n" unless $PROCESS;
+    $PROCESS->{set}{$key} = $value;
+}
+
+sub proc ($code, @process) :prototype(&;@) {
+    if (!$PIPELINE) {
+        local $PIPELINE = Process::Pipeline->new;
+        local $PROCESS  = Process::Pipeline::Process->new;
+        $PROCESS->cmd($code->());
+        $PIPELINE->_push($PROCESS);
+        $PIPELINE->_push($_) for map { $_->{process}->@* } @process;
+        return $PIPELINE;
     } else {
-        my $p = Process::Pipeline::Process->new;
-        $p->cmd( $code->() );
-        return $p;
+        local $PROCESS = Process::Pipeline::Process->new;
+        $PROCESS->cmd($code->());
+        return $PROCESS;
     }
 }
 

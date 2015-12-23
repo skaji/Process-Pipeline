@@ -22,32 +22,39 @@ package Process::Pipeline::Process {
         }
         $self->{cmd};
     }
-    sub set ($self, @arg) {
-        if (@arg) {
-            $self->{set}->{$arg[0]} = $arg[1] // undef;
-        }
+    sub set ($self, $key = undef, $value = undef) {
+        $self->{set}{$key} = $value if $key;
         $self->{set};
     }
 }
 
+package Process::Pipeline::Result::Each {
+    sub new ($class, %option) { bless {%option}, $class }
+    sub status ($self) { $self->{status} }
+    sub cmd    ($self) { $self->{cmd} }
+    sub pid    ($self) { $self->{pid} }
+}
+
 package Process::Pipeline::Result {
     use POSIX ();
+    use overload '@{}' => sub { shift->{result} };
+
     sub new ($class) {
         bless {result => [], fh => undef}, $class;
     }
     sub push ($self, $hash) :method {
-        push $self->{result}->@*, $hash;
+        push $self->@*, $hash;
         $self;
     }
     sub is_success ($self) {
-        $self->@* == grep { $_->{status}->is_success } $self->{result}->@*;
+        $self->@* == grep { $_->status->is_success } $self->@*;
     }
     sub fh ($self, $arg = undef) {
         $self->{fh} = $arg if $arg;
         $self->{fh};
     }
     sub wait ($self) :method {
-        while (grep { !defined $_->{status} } $self->{result}->@*) {
+        while (grep { !defined $_->status } $self->@*) {
             my $pid = waitpid -1, POSIX::WNOHANG;
             my $save = $?;
             if ($pid == 0) {
@@ -55,7 +62,7 @@ package Process::Pipeline::Result {
             } elsif ($pid == -1) {
                 last;
             } else {
-                my ($found) = grep { $_->{pid} == $pid } $self->{result}->@*;
+                my ($found) = grep { $_->pid == $pid } $self->@*;
                 if (!$found) {
                     warn "waitpid returns $pid, but is not our child!";
                     last;
@@ -74,8 +81,7 @@ sub new ($class) {
 sub push ($self, $callback) :method {
     my $p = Process::Pipeline::Process->new;
     $callback->($p);
-    push $self->{process}->@*, $p;
-    $self;
+    $self->_push($p);
 }
 
 sub _push ($self, $p) {
@@ -148,11 +154,11 @@ sub start ($self, %option) {
                 exit 255;
             }
         }
-        $result->push({
-            pid     => $pid,
+        $result->push(Process::Pipeline::Result::Each->new(
+            pid => $pid,
             cmd => $process->cmd,
             status  => undef,
-        });
+        ));
     }
     $_->close for map { $_->@* } @pipe;
     if ($main_out_fh) {
