@@ -5,7 +5,7 @@ use warnings;
 
 use File::Temp ();
 
-our $VERSION = '0.01';
+our $VERSION = '0.02';
 
 {
     package Process::Pipeline::Process;
