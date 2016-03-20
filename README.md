@@ -90,7 +90,7 @@ Constructor.
 
 Push a Process::Pipeline::Process object to the pipeline.
 
-### start
+## start
 
     my $result = $pipeline->start;
 

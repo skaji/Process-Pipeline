@@ -285,7 +285,7 @@ Constructor.
 
 Push a Process::Pipeline::Process object to the pipeline.
 
-=head3 start
+=head2 start
 
    my $result = $pipeline->start;
 
