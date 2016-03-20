@@ -1,18 +1,21 @@
 package Process::Pipeline;
-use 5.22.1;
+use 5.008001;
+use strict;
 use warnings;
-use experimental qw/ postderef signatures /;
 
 use File::Temp ();
 use Process::Status;
 
 our $VERSION = '0.01';
 
-package Process::Pipeline::Process {
-    sub new ($class) {
+{
+    package Process::Pipeline::Process;
+    sub new {
+        my $class = shift;
         bless { cmd => [], set => {} }, $class;
     }
-    sub cmd ($self, @arg) {
+    sub cmd {
+        my ($self, @arg) = @_;
         if (@arg) {
             if (ref $arg[0] eq 'CODE') {
                 $self->{cmd} = $arg[0];
@@ -22,39 +25,47 @@ package Process::Pipeline::Process {
         }
         $self->{cmd};
     }
-    sub set ($self, $key = undef, $value = undef) {
+    sub set {
+        my ($self, $key, $value) = @_;
         $self->{set}{$key} = $value if $key;
         $self->{set};
     }
 }
 
-package Process::Pipeline::Result::Each {
-    sub new ($class, %option) { bless {%option}, $class }
-    sub status ($self) { $self->{status} }
-    sub cmd    ($self) { $self->{cmd} }
-    sub pid    ($self) { $self->{pid} }
+{
+    package Process::Pipeline::Result::Each;
+    sub new { my ($class, %option) = @_; bless {%option}, $class }
+    sub status { shift->{status} }
+    sub cmd    { shift->{cmd} }
+    sub pid    { shift->{pid} }
 }
 
-package Process::Pipeline::Result {
+{
+    package Process::Pipeline::Result;
     use POSIX ();
     use overload '@{}' => sub { shift->{result} };
 
-    sub new ($class) {
+    sub new {
+        my $class = shift;
         bless {result => [], fh => undef}, $class;
     }
-    sub push ($self, $hash) :method {
-        push $self->@*, $hash;
+    sub push :method {
+        my ($self, $hash) = @_;
+        push @$self, $hash;
         $self;
     }
-    sub is_success ($self) {
-        $self->@* == grep { $_->status->is_success } $self->@*;
+    sub is_success {
+        my $self = shift;
+        @$self == grep { $_->status->is_success } @$self;
     }
-    sub fh ($self, $arg = undef) {
-        $self->{fh} = $arg if $arg;
+    sub fh {
+        my $self = shift;
+        $self->{fh} = shift if @_;
         $self->{fh};
     }
-    sub wait ($self) :method {
-        while (grep { !defined $_->status } $self->@*) {
+    sub wait :method {
+        my $self = shift;
+        while (grep { !defined $_->status } @$self) {
             my $pid = waitpid -1, POSIX::WNOHANG;
             my $save = $?;
             if ($pid == 0) {
@@ -62,7 +73,7 @@ package Process::Pipeline::Result {
             } elsif ($pid == -1) {
                 last;
             } else {
-                my ($found) = grep { $_->pid == $pid } $self->@*;
+                my ($found) = grep { $_->pid == $pid } @$self;
                 if (!$found) {
                     warn "waitpid returns $pid, but is not our child!";
                     last;
@@ -74,26 +85,30 @@ package Process::Pipeline::Result {
     }
 }
 
-sub new ($class) {
-    bless { process => [] }, $class;
+sub new {
+    bless { process => [] }, shift;
 }
 
-sub push ($self, $callback) :method {
+sub push :method {
+    my ($self, $callback) = @_;
     my $p = Process::Pipeline::Process->new;
     $callback->($p);
     $self->_push($p);
 }
 
-sub _push ($self, $p) {
-    push $self->{process}->@*, $p;
+sub _push {
+    my ($self, $p) = @_;
+    push @{$self->{process}}, $p;
     $self;
 }
 
-sub start ($self, %option) {
-    my $n = $self->{process}->$#*;
+sub start {
+    my ($self, %option) = @_;
+    my $n = $#{$self->{process}};
     my @pipe = map { pipe my $read, my $write; [$read, $write] } 0..($n - 1);
-    my $close = sub ($i) {
-        my @close = map { $pipe[$_]->@* } grep { $_ != $i - 1 && $_ != $i } 0..$#pipe;
+    my $close = sub {
+        my $i = shift;
+        my @close = map { @{$pipe[$_]} } grep { $_ != $i - 1 && $_ != $i } 0..$#pipe;
         $_->close for @close;
     };
 
@@ -104,7 +119,8 @@ sub start ($self, %option) {
         if ($i == $n && !$process->set->{">"} && !$process->set->{">>"}) {
             ($main_out_fh, $main_out_name) = File::Temp::tempfile(UNLINK => 0);
         }
-        my $pid = fork // die "fork: $!";
+        my $pid = fork;
+        die "fork: $!" unless defined $pid;
         if ($pid == 0) {
             if ($main_out_name) {
                 close $main_out_fh;
@@ -123,7 +139,7 @@ sub start ($self, %option) {
                 open STDOUT, ">&", $write->[1];
             }
 
-            my %set = $process->set->%*;
+            my %set = %{$process->set};
             if (my $in = $set{"<"}) {
                 open my $fh, "<", $in or die "open $in: $!";
                 open STDIN, "<&", $fh;
@@ -149,7 +165,7 @@ sub start ($self, %option) {
                 $cmd->();
                 exit;
             } else {
-                my @cmd = $cmd->@*;
+                my @cmd = @$cmd;
                 exec {$cmd[0]} @cmd;
                 exit 255;
             }
@@ -160,7 +176,7 @@ sub start ($self, %option) {
             status  => undef,
         ));
     }
-    $_->close for map { $_->@* } @pipe;
+    $_->close for map { @$_ } @pipe;
     if ($main_out_fh) {
         select undef, undef, undef, 0.01;
         unlink $main_out_name;
@@ -190,9 +206,9 @@ In perl5:
   use Process::Pipeline;
 
   my $pipeline = Process::Pipeline->new
-    ->push(sub ($p) { $p->cmd("zcat", "access.log.gz") })
-    ->push(sub ($p) { $p->cmd("grep", "198.168.10.1")  })
-    ->push(sub ($p) { $p->cmd("wc", "-l")              });
+    ->push(sub { my $p = shift; $p->cmd("zcat", "access.log.gz") })
+    ->push(sub { my $p = shift; $p->cmd("grep", "198.168.10.1")  })
+    ->push(sub { my $p = shift; $p->cmd("wc", "-l")              });
 
   my $r = $pipeline->start;
 

@@ -4,7 +4,7 @@
       "Shoichi Kaji <skaji@cpan.org>"
    ],
    "dynamic_config" : 0,
-   "generated_by" : "Dist::Zilla version 5.042, Dist::Milla version v1.0.15, CPAN::Meta::Converter version 2.150005",
+   "generated_by" : "Dist::Zilla version 5.043, Dist::Milla version v1.0.15, CPAN::Meta::Converter version 2.150005",
    "license" : [
       "perl_5"
    ],
@@ -38,8 +38,7 @@
       "runtime" : {
          "requires" : {
             "Process::Status" : "0",
-            "experimental" : "0",
-            "perl" : "v5.22.1"
+            "perl" : "5.008001"
          }
       },
       "test" : {
@@ -51,13 +50,13 @@
    "release_status" : "stable",
    "resources" : {
       "bugtracker" : {
-         "web" : "https://github.com/shoichikaji/Process-Pipeline/issues"
+         "web" : "https://github.com/skaji/Process-Pipeline/issues"
       },
-      "homepage" : "https://github.com/shoichikaji/Process-Pipeline",
+      "homepage" : "https://github.com/skaji/Process-Pipeline",
       "repository" : {
          "type" : "git",
-         "url" : "https://github.com/shoichikaji/Process-Pipeline.git",
-         "web" : "https://github.com/shoichikaji/Process-Pipeline"
+         "url" : "https://github.com/skaji/Process-Pipeline.git",
+         "web" : "https://github.com/skaji/Process-Pipeline"
       }
    },
    "version" : "0.01",
