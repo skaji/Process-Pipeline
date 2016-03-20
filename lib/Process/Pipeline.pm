@@ -10,6 +10,7 @@ our $VERSION = '0.01';
 
 {
     package Process::Pipeline::Process;
+    my %SUPPORT_SET = map { $_ => 1 } qw(<  >  >>  2>  2>>  2>&1);
     sub new {
         my $class = shift;
         bless { cmd => [], set => {} }, $class;
@@ -27,7 +28,10 @@ our $VERSION = '0.01';
     }
     sub set {
         my ($self, $key, $value) = @_;
-        $self->{set}{$key} = $value if $key;
+        if ($key) {
+            die "Unsupport set '$key'" unless $SUPPORT_SET{$key};
+            $self->{set}{$key} = $value;
+        }
         $self->{set};
     }
 }
@@ -69,7 +73,7 @@ our $VERSION = '0.01';
             my $pid = waitpid -1, POSIX::WNOHANG;
             my $save = $?;
             if ($pid == 0) {
-                select undef, undef, undef, 0.1;
+                select undef, undef, undef, 0.01;
             } elsif ($pid == -1) {
                 last;
             } else {
@@ -199,19 +203,18 @@ Process::Pipeline - execute processes as pipeline
 
 In shell:
 
-   $ zcat access.log.gz | grep 198.0.0.1 | wc -l
+   $ zcat access.log.gz | grep -v 127.0.0.1 | grep -c POST
 
 In perl5:
 
   use Process::Pipeline;
 
   my $pipeline = Process::Pipeline->new
-    ->push(sub { my $p = shift; $p->cmd("zcat", "access.log.gz") })
-    ->push(sub { my $p = shift; $p->cmd("grep", "198.168.10.1")  })
-    ->push(sub { my $p = shift; $p->cmd("wc", "-l")              });
+    ->push(sub { my $p = shift; $p->cmd("zcat", "access.log.gz")   })
+    ->push(sub { my $p = shift; $p->cmd("grep", "-v", "127.0.0.1") })
+    ->push(sub { my $p = shift; $p->cmd("grep", "-c", "POST"       });
 
   my $r = $pipeline->start;
-
   if ($r->is_success) {
      my $fh = $result->fh; # output filehandle of $pipeline
      say <$fh>;
@@ -221,19 +224,92 @@ In perl5 with DSL:
 
   use Process::Pipeline::DSL;
 
-  my $pipeline = proc { "zcat", "access.log.gz" }
-                 proc { "grep", "198.168.10.1"  }
-                 proc { "wc", "-l"              };
+  my $pipeline = proc { "zcat", "access.log.gz"   }
+                 proc { "grep", "-v", "127.0.0.1" }
+                 proc { "grep", "-c", "POST"      };
 
   my $r = $pipeline->start;
+  if ($r->is_success) {
+     my $fh = $result->fh; # output filehandle of $pipeline
+     say <$fh>;
+  }
 
 =head1 DESCRIPTION
 
 Process::Pipeline helps you write a pipeline of processes.
 
+=head1 MOTIVATION
+
+It is known that we should avoid shell-invocation in perl.
+But, because the notation of shell is very convenient,
+I sometimes find myself invoking shell. Oops.
+
+The main reason for invoking shell in perl is
+that perl does not have as convenient notation as shell has.
+
+Process::Pipeline try to give an easy pipeline notation to perl.
+
+Why don't you change
+
+    chomp(my $num = `zcat access.log.gz | grep -v 127.0.0.1 | grep -c POST`);
+
+into
+
+    use Process::Pipeline::DSL;
+    my $p = proc { "zcat", "access.log.gz"   }
+            proc { "grep", "-v", "127.0.0.1" }
+            proc { "grep", "-c", "POST"      };
+    my $r = $p->start;
+    if ($r->is_success) {
+      my $fh = $r->fh;
+      chomp(my $num = <$fh>);
+    }
+
+=head1 METHODS
+
+=head2 new
+
+  my $pipeline = Process::Pipeline->new;
+
+Constructor.
+
+=head2 push
+
+  $pipeline->push(sub {
+    my $p = shift;
+    $p->cmd("zcat", "access.log.gz");
+  });
+  $pipeline->push(sub {
+    my $p = shift;
+    $p->set("2>", "/dev/null");
+    $p->cmd("zcat", "access.log.gz");
+  });
+
+Push a Process::Pipeline::Process object to the pipeline.
+
+=head3 start
+
+   my $result = $pipeline->start;
+
+Start the pipeline. It returns a Process::Pipeline::Result object.
+
+   my $result = $pipeline->start;
+   my $bool   = $reuslt->is_success; # all commands exit successfully
+   my $fh     = $reuslt->fh;         # pipeline's output filehandle
+
+=head1 DSL
+
+There is a DSL for Process::Pipeline. Process::Pipeline::DSL exports
+C<proc> and C<set> functions, and you can construct pipelines easily.
+
+  use Process::Pipeline::DSL;
+  my $p = proc { "git", "archive", "--format=tar", "--prefix=repo/", "HEAD" }
+          proc { set ">" => "repo.tar.gz"; "gzip" };
+  my $r = $p->start;
+
 =head1 COPYRIGHT AND LICENSE
 
-Copyright 2015 Shoichi Kaji <skaji@cpan.org>
+Copyright 2016 Shoichi Kaji <skaji@cpan.org>
 
 This library is free software; you can redistribute it and/or modify
 it under the same terms as Perl itself.
