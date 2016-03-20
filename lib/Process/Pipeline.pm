@@ -85,6 +85,10 @@ our $VERSION = '0.02';
                 $found->{status} = Process::Status->new($save);
             }
         }
+        if (my $filename = delete $self->{_filename}) {
+            local $!;
+            unlink $filename;
+        }
         $self;
     }
 }
@@ -116,19 +120,19 @@ sub start {
         $_->close for @close;
     };
 
-    my ($main_out_fh, $main_out_name);
+    my ($main_out_fh, $main_out_filename);
     my $result = Process::Pipeline::Result->new;
     for my $i (0..$n) {
         my $process = $self->{process}[$i];
         if ($i == $n && !$process->set->{">"} && !$process->set->{">>"}) {
-            ($main_out_fh, $main_out_name) = File::Temp::tempfile(UNLINK => 0);
+            ($main_out_fh, $main_out_filename) = File::Temp::tempfile(UNLINK => 0);
         }
         my $pid = fork;
         die "fork: $!" unless defined $pid;
         if ($pid == 0) {
-            if ($main_out_name) {
+            if ($main_out_filename) {
                 close $main_out_fh;
-                open STDOUT, ">>", $main_out_name or die $!;
+                open STDOUT, ">>", $main_out_filename or die $!;
             }
             $close->($i);
             my $read  = $i - 1 >= 0 ? $pipe[$i - 1] : undef;
@@ -181,9 +185,8 @@ sub start {
         ));
     }
     $_->close for map { @$_ } @pipe;
-    if ($main_out_fh) {
-        select undef, undef, undef, 0.01;
-        unlink $main_out_name;
+    if ($main_out_filename) {
+        $result->{_filename} = $main_out_filename;
         $result->fh($main_out_fh);
     }
     $result->wait unless $option{async};
