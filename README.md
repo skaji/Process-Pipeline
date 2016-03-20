@@ -19,8 +19,8 @@ In perl5:
       ->push(sub { my $p = shift; $p->cmd("grep", "-v", "127.0.0.1") })
       ->push(sub { my $p = shift; $p->cmd("grep", "-c", "POST"       });
 
-    my $r = $pipeline->start;
-    if ($r->is_success) {
+    my $result = $pipeline->start;
+    if ($result->is_success) {
        my $fh = $result->fh; # output filehandle of $pipeline
        say <$fh>;
     }
@@ -33,8 +33,8 @@ In perl5 with DSL:
                    proc { "grep", "-v", "127.0.0.1" }
                    proc { "grep", "-c", "POST"      };
 
-    my $r = $pipeline->start;
-    if ($r->is_success) {
+    my $result = $pipeline->start;
+    if ($result->is_success) {
        my $fh = $result->fh; # output filehandle of $pipeline
        say <$fh>;
     }
