@@ -18,7 +18,7 @@ my %module_build_args = (
     "Shoichi Kaji <skaji\@cpan.org>"
   ],
   "dist_name" => "Process-Pipeline",
-  "dist_version" => "0.02",
+  "dist_version" => "0.03",
   "license" => "perl",
   "module_name" => "Process::Pipeline",
   "recursive_test_files" => 1,
