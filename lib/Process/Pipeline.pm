@@ -4,7 +4,6 @@ use strict;
 use warnings;
 
 use File::Temp ();
-use Process::Status;
 
 our $VERSION = '0.01';
 
@@ -47,6 +46,7 @@ our $VERSION = '0.01';
 {
     package Process::Pipeline::Result;
     use POSIX ();
+    use Process::Status;
     use overload '@{}' => sub { shift->{result} };
 
     sub new {
@@ -70,7 +70,7 @@ our $VERSION = '0.01';
     sub wait :method {
         my $self = shift;
         while (grep { !defined $_->status } @$self) {
-            my $pid = waitpid -1, POSIX::WNOHANG;
+            my $pid = waitpid -1, POSIX::WNOHANG();
             my $save = $?;
             if ($pid == 0) {
                 select undef, undef, undef, 0.01;
@@ -247,9 +247,7 @@ I sometimes find myself invoking shell. Oops.
 The main reason for invoking shell in perl is
 that perl does not have as convenient notation as shell has.
 
-Process::Pipeline try to give an easy pipeline notation to perl.
-
-Why don't you change
+Process::Pipeline try to give an easy pipeline notation to perl. Why don't you change
 
     chomp(my $num = `zcat access.log.gz | grep -v 127.0.0.1 | grep -c POST`);
 

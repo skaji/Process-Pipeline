@@ -52,9 +52,7 @@ I sometimes find myself invoking shell. Oops.
 The main reason for invoking shell in perl is
 that perl does not have as convenient notation as shell has.
 
-Process::Pipeline try to give an easy pipeline notation to perl.
-
-Why don't you change
+Process::Pipeline try to give an easy pipeline notation to perl. Why don't you change
 
     chomp(my $num = `zcat access.log.gz | grep -v 127.0.0.1 | grep -c POST`);
 
