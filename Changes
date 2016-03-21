@@ -2,6 +2,9 @@ Revision history for Process-Pipeline
 
 {{$NEXT}}
 
+0.04  2016-03-21 12:45:39 JST
+    - Close unneccesary filehandles
+
 0.03  2016-03-20 23:48:58 JST
     - Save tempfile until all processes exit (#2 eserte)
     - Fix variable names in pod (#3 eserte)
