@@ -140,33 +140,32 @@ sub start {
             if ($read) {
                 $read->[1]->close;
                 open STDIN, "<&", $read->[0];
+                $read->[0]->close;
             }
             if ($write) {
                 $write->[0]->close;
-                $write->[1]->autoflush(1);
                 open STDOUT, ">&", $write->[1];
+                $write->[1]->close;
             }
 
             my %set = %{$process->set};
             if (my $in = $set{"<"}) {
-                open my $fh, "<", $in or die "open $in: $!";
-                open STDIN, "<&", $fh;
+                open STDIN, "<", $in or die "open $in: $!";
             }
             if (my $out = $set{">"} or my $append = $set{">>"}) {
                 my $mode = defined $out ? ">"  : ">>";
                 my $file = defined $out ? $out : $append;
-                open my $fh, $mode, $file or die "open $file: $!";
-                open STDOUT, "$mode&", $fh;
+                open STDOUT, $mode, $file or die "open $file: $!";
             }
             if (my $out = $set{"2>"} or my $append = $set{"2>>"}) {
                 my $mode = defined $out ? ">"  : ">>";
                 my $file = defined $out ? $out : $append;
-                open my $fh, $mode, $file or die "open $file: $!";
-                open STDERR, "$mode&", $fh;
+                open STDERR, $mode, $file or die "open $file: $!";
             }
             if (exists $set{"2>&1"}) {
                 open STDERR, ">&", \*STDOUT;
             }
+            STDOUT->autoflush(1);
 
             my $cmd = $process->cmd;
             if (ref $cmd eq "CODE") {
