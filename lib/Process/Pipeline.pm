@@ -3,8 +3,6 @@ use 5.008001;
 use strict;
 use warnings;
 
-use File::Temp ();
-
 our $VERSION = '0.04';
 
 {
@@ -85,9 +83,8 @@ our $VERSION = '0.04';
                 $found->{status} = Process::Status->new($save);
             }
         }
-        if (my $filename = delete $self->{_filename}) {
-            local $!;
-            unlink $filename;
+        if (my $fh = $self->fh) {
+            seek $fh, 0, 0;
         }
         $self;
     }
@@ -120,19 +117,18 @@ sub start {
         $_->close for @close;
     };
 
-    my ($main_out_fh, $main_out_filename);
+    my $main_out_fh;
     my $result = Process::Pipeline::Result->new;
     for my $i (0..$n) {
         my $process = $self->{process}[$i];
         if ($i == $n && !$process->set->{">"} && !$process->set->{">>"}) {
-            ($main_out_fh, $main_out_filename) = File::Temp::tempfile(UNLINK => 0);
+            open $main_out_fh, "+>", undef;
         }
         my $pid = fork;
         die "fork: $!" unless defined $pid;
         if ($pid == 0) {
-            if ($main_out_filename) {
-                close $main_out_fh;
-                open STDOUT, ">>", $main_out_filename or die $!;
+            if ($main_out_fh) {
+                open STDOUT, ">&", $main_out_fh;
             }
             $close->($i);
             my $read  = $i - 1 >= 0 ? $pipe[$i - 1] : undef;
@@ -184,8 +180,7 @@ sub start {
         ));
     }
     $_->close for map { @$_ } @pipe;
-    if ($main_out_filename) {
-        $result->{_filename} = $main_out_filename;
+    if ($main_out_fh) {
         $result->fh($main_out_fh);
     }
     $result->wait unless $option{async};
