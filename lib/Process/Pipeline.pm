@@ -2,6 +2,7 @@ package Process::Pipeline;
 use 5.008001;
 use strict;
 use warnings;
+use IO::Handle;
 
 our $VERSION = '0.04';
 
